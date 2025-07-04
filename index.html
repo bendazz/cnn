@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNN Pipeline Visualization - Convolution, Pooling & Flattening</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            min-width: 280px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .slider-container label {
+            min-width: 100px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .slider {
+            flex: 1;
+            margin: 0 10px;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        .value-display {
+            min-width: 25px;
+            color: #333;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+        
+        .button:hover {
+            background: #5a6fd8;
+        }
+        
+        .toggle-button {
+            background: #28a745;
+        }
+        
+        .toggle-button:hover {
+            background: #218838;
+        }
+        
+        .toggle-button.paused {
+            background: #dc3545;
+        }
+        
+        .toggle-button.paused:hover {
+            background: #c82333;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-width: 380px;
+        }
+        
+        #info h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        #info p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .layer-legend {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .layer-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        
+        .red { background-color: #ff4444; }
+        .green { background-color: #44ff44; }
+        .blue { background-color: #4444ff; }
+        .gray { background-color: #888888; }
+        
+        #explanation {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            max-width: 320px;
+        }
+        
+        #explanation h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        #explanation h4 {
+            margin: 15px 0 8px 0;
+            color: #444;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        #explanation p {
+            margin: 8px 0;
+            color: #666;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .highlight-text {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .kernel-count-info {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+
+            
+            <div class="control-group">
+                <h3>🧠 CNN Configuration</h3>
+                <div class="slider-container">
+                    <label>Number of Kernels:</label>
+                    <input type="range" id="numKernels" class="slider" min="1" max="8" value="3" step="1">
+                    <span class="value-display" id="numKernelsValue">3</span>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>🎮 Animation</h3>
+                <button id="resetBtn" class="button">Reset View</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>🔧 Visualization</h3>
+                <button id="rotateBtn" class="button">Auto Rotate</button>
+            </div>
+        </div>
+        
+        <div id="explanation">
+            <h3>🔬 CNN Pipeline Operation</h3>
+            
+            <h4>📐 How It Works:</h4>
+            <p>Multiple <span class="highlight-text">3×3×3 kernels</span> process all three RGB layers simultaneously to create feature maps with <span class="highlight-text">padding</span> to preserve dimensions.</p>
+            
+            <h4>🏊 Max Pooling:</h4>
+            <p>A <span class="highlight-text">2×2 max pooling</span> operation with stride 2 reduces each 8×8 feature map to 4×4, keeping only the maximum values and reducing computational load.</p>
+            
+            <h4>� Flattening:</h4>
+            <p>All pooled feature maps are <span class="highlight-text">flattened</span> into a single column vector, preparing the data for fully connected layers.</p>
+            
+            <h4>�📊 Output Layers:</h4>
+            <p id="kernelInfo">Using 3 kernels creates 3 grayscale feature maps, each highlighting different aspects of the input image.</p>
+            
+            <div class="kernel-count-info" id="kernelCountInfo">
+                Current setup: 8×8×3 input → 3 kernels → 3 feature maps (8×8) → max pool → 3 pooled maps (4×4) → flatten → 48 neurons
+            </div>
+            
+            <h4>💡 Key Concept:</h4>
+            <p>Flattening converts 2D feature maps into a 1D vector, enabling the transition from convolutional layers to fully connected layers in the CNN.</p>
+        </div>
+        
+        <div id="info">
+            <h3>📚 CNN Pipeline Demonstration</h3>
+            <p><strong>Input:</strong> Three 8×8 layers representing RGB channels of a color image</p>
+            <p><strong>Kernels:</strong> Multiple 3×3×3 filters that detect different features</p>
+            <p><strong>Feature Maps:</strong> Multiple 8×8 grayscale feature maps (same size due to padding)</p>
+            <p><strong>Max Pooling:</strong> 2×2 pooling with stride 2 creates 4×4 pooled feature maps</p>
+            <p><strong>Flattening:</strong> All pooled maps are flattened into a single column vector</p>
+            <p><strong>Fully Connected:</strong> Spherical input nodes receive flattened features via connecting lines</p>
+            <div class="layer-legend">
+                <div class="layer-item">
+                    <div class="layer-color red"></div>
+                    <span>Red Channel</span>
+                </div>
+                <div class="layer-item">
+                    <div class="layer-color green"></div>
+                    <span>Green Channel</span>
+                </div>
+                <div class="layer-item">
+                    <div class="layer-color blue"></div>
+                    <span>Blue Channel</span>
+                </div>
+                <div class="layer-item">
+                    <div class="layer-color gray"></div>
+                    <span>Feature Maps</span>
+                </div>
+                <div class="layer-item">
+                    <div class="layer-color" style="background-color: #666666;"></div>
+                    <span>Pooled Maps</span>
+                </div>
+                <div class="layer-item">
+                    <div class="layer-color" style="background-color: #9966cc;"></div>
+                    <span>Flattened Vector</span>
+                </div>
+                <div class="layer-item">
+                    <div class="layer-color" style="background-color: #ff9933;"></div>
+                    <span>FC Input Nodes</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
